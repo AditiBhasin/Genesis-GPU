@@ -2,93 +2,143 @@
 
 **An AI GPU engineer that measures its way to better kernels.**
 
-GENESIS GPU is a hackathon prototype for evidence-driven kernel search. NVIDIA Nemotron, called through Nebius Token Factory, proposes a small set of Triton launch configurations. The application compiles each configuration on a CUDA GPU, checks results against PyTorch, measures correct candidates, records the run, and selects the fastest measured candidate.
+GENESIS GPU is a hackathon prototype for evidence-driven GPU kernel search. NVIDIA Nemotron, accessed through Nebius Token Factory, is intended to propose a small set of Triton launch configurations. On a compatible CUDA GPU, the evaluator compiles each configuration, checks its output against PyTorch, measures correct candidates, records the run, and selects the fastest measured candidate.
 
-## Current scope and honest status
+## Current Scope and Status
 
-- Workload: FP32 vector addition.
-- Nemotron proposes bounded launch parameters only. Model-generated source code is never executed.
-- The evaluator refuses to report GPU timings without a CUDA device.
-- The repository currently contains the implementation scaffold; no live inference, GPU run, deployment, or performance result is claimed until you configure access and execute it.
+- **Workload:** FP32 vector addition.
+- **Bounded generation:** The model proposes launch parameters only. Model-generated source code is never executed.
+- **Correctness first:** Candidates must pass numerical validation before their performance is considered.
+- **Hardware-aware evaluation:** The evaluator does not claim GPU timings without actual GPU execution.
+- **Interactive demo:** The Streamlit dashboard provides illustrative configurations and local validation when live services or compatible hardware are unavailable.
+
+**Important:** Demo configurations are illustrative examples. They are not live Nemotron output and have not been benchmarked on a GPU. Live inference and real GPU measurements must be verified by running the application with the required credentials and hardware.
 
 ## Requirements
 
 - Python 3.10 or newer.
-- A Linux environment with a compatible NVIDIA GPU, CUDA-enabled PyTorch, and Triton. A GPU notebook or Nebius GPU machine can be used.
-- Nebius Token Factory access and a `NEBIUS_API_KEY`.
+- A compatible Linux environment with an NVIDIA GPU, CUDA-enabled PyTorch, and Triton.
+- Nebius Token Factory access and a `NEBIUS_API_KEY` for live model inference.
 
-Windows machines without a CUDA-compatible Triton environment should run this project in a Linux GPU notebook or GPU cloud instance. The Streamlit UI can run on another host, but the evaluator process must have access to the GPU.
+A Linux GPU machine or compatible GPU cloud environment is recommended. Windows machines without a supported CUDA/Triton environment should use a Linux GPU machine instead of attempting local GPU benchmarking.
 
 ## Setup
 
-### Recommended for the deadline: Linux GPU machine
+### Recommended: Linux GPU machine
 
-Use a Linux machine with an NVIDIA GPU (a GPU cloud machine is fine). Open the extracted project folder in VS Code, open its terminal, and run:
+Open the project folder in VS Code and run:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-# Install the CUDA-enabled PyTorch build that matches this GPU environment
-pip install torch
-pip install -r requirements.txt
-export NEBIUS_API_KEY="your-token-factory-key"  # keep this private; do not commit it
-streamlit run app.py
 ```
 
-The `pip install torch` command above is suitable for many standard Linux CUDA environments, but if PyTorch recommends a specific CUDA wheel for this machine, use the command from the [official PyTorch installer selector](https://pytorch.org/get-started/locally/) instead. Then run `pip install -r requirements.txt`.
+Install the CUDA-enabled PyTorch build appropriate for the machine using the [official PyTorch installation selector](https://pytorch.org/get-started/locally/).
 
-Before opening the dashboard, verify GPU access:
+Then install the project dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Set your Token Factory API key privately:
+
+```bash
+export NEBIUS_API_KEY="your-token-factory-key"
+```
+
+Never commit API keys or other secrets to GitHub.
+
+Verify GPU access:
 
 ```bash
 python -c "import torch, triton; print('CUDA:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NOT FOUND')"
 ```
 
-Continue only if it prints `CUDA: True` and the actual GPU model. The dashboard starts at the local URL printed in the terminal, usually `http://localhost:8501`.
+Continue with measured benchmarking only if CUDA is available and the expected GPU is detected.
 
-### If using Windows
+Launch the dashboard:
 
-The shortest supported route is to run the project in **WSL 2 Ubuntu** with an NVIDIA GPU. Install/update the NVIDIA driver on Windows, then install WSL 2 and Ubuntu. In WSL, do not install a Linux NVIDIA display driver; the Windows driver supplies GPU access. NVIDIA's [CUDA on WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/) has the current steps. Open the project folder from VS Code using the WSL extension, then follow the Linux steps above. If `nvidia-smi` or the PyTorch check cannot see the GPU, switch to a Linux GPU cloud machine rather than spending the remaining hackathon time on driver setup.
+```bash
+streamlit run app.py
+```
 
-In PowerShell, an API key for a process running directly in Windows can be set with `$env:NEBIUS_API_KEY="your-token-factory-key"`. For WSL, use `export NEBIUS_API_KEY="your-token-factory-key"` inside the Ubuntu terminal.
+Streamlit normally prints a local URL such as `http://localhost:8501`.
 
-The default model ID is `nvidia/Nemotron-3_5-Lightning`; override it with `NEBIUS_MODEL` if your account's live catalog lists a different eligible model. The Token Factory endpoint is configurable via `NEBIUS_BASE_URL`.
+### Windows
 
-## Reproduce a run
+For GPU benchmarking, use WSL 2 with a compatible NVIDIA GPU and driver, or use a Linux GPU cloud machine. Follow the [official NVIDIA CUDA on WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/) for current setup instructions.
 
-1. Confirm the dashboard reports a connected Token Factory key and the actual CUDA GPU model.
-2. Choose vector length, model proposal count, and repeated benchmark count.
-3. Start a run. Nemotron returns JSON launch settings, which are restricted to a fixed allowlist.
-4. The evaluator compiles each candidate, validates output against PyTorch, and times only correct candidates.
-5. Inspect the candidate table and download the run JSON. Local run records are stored under `runs/`.
+For a process running directly in Windows PowerShell, an API key can be set with:
 
-Do not copy sample/demo timings into a submission. Submit only a run record produced on real GPU hardware.
+```powershell
+$env:NEBIUS_API_KEY="your-token-factory-key"
+```
+
+For WSL Ubuntu, set the key inside the Ubuntu terminal:
+
+```bash
+export NEBIUS_API_KEY="your-token-factory-key"
+```
+
+If the GPU is not detected by PyTorch, do not report benchmark results.
+
+## Model Configuration
+
+The default model ID is `nvidia/Nemotron-3_5-Lightning`.
+
+The model can be overridden with `NEBIUS_MODEL` if a different eligible model is available to your account. The Token Factory endpoint can be configured using `NEBIUS_BASE_URL`.
+
+Successful model access depends on account permissions, model availability, and a valid API key.
+
+## Reproduce a Real Run
+
+1. Confirm that the application has access to a valid Token Factory API key and a compatible CUDA GPU.
+2. Choose the vector length, model proposal count, and benchmark repeat count.
+3. Start a run. The model returns JSON launch settings restricted to an allowlist.
+4. The evaluator compiles candidates, checks their outputs against a PyTorch reference, and times only correct candidates.
+5. Inspect the candidate results and download the run JSON.
+6. Review the recorded hardware and benchmark details before reporting performance.
+
+Local run records are stored under `runs/`, where applicable.
+
+**Do not present demo configurations or illustrative values as measured performance.** Report only results obtained from actual GPU execution.
 
 ## Architecture
 
-- `genesis/model.py`: OpenAI-compatible Nebius Token Factory call and strict config validation.
-- `genesis/engine.py`: Triton candidate compilation, PyTorch correctness check, repeated timing, and best-candidate selection.
-- `app.py`: Streamlit dashboard, access checks, actual run results, and JSON download.
+- `app.py` — Streamlit dashboard, access checks, demo explorer, run results, and JSON download.
+- `genesis/model.py` — Nebius Token Factory client and launch-configuration validation.
+- `genesis/engine.py` — Triton candidate execution, PyTorch correctness checks, benchmarking, and best-candidate selection.
 
-## Hackathon fit
+## Intended Hackathon Track
 
-The intended track is **Coding and Agentic Engineering**. The official challenge requires a working application that makes a runtime call to Nebius Token Factory or runs on Nebius AI Cloud, and uses at least one NVIDIA open-source model. GENESIS uses NVIDIA Nemotron 3.5 Lightning through Token Factory; actual availability and successful inference must be verified using the team account before submission.
+**Coding and Agentic Engineering**
+
+The intended workflow uses NVIDIA Nemotron through Nebius Token Factory to propose bounded kernel launch configurations, followed by programmatic validation and measurement.
+
+The live API integration, model availability, and GPU execution must be tested before claiming that the complete workflow has been demonstrated.
+
+See the [hackathon overview and submission requirements](https://nebiusglobalaihackathon.devpost.com/) and [official rules](https://nebiusglobalaihackathon.devpost.com/rules).
 
 ## Limitations
 
-- No live call or GPU measurements are included in this repository yet.
-- Candidate search is limited to launch parameters for one workload; this is a safe, bounded prototype rather than arbitrary AI-authored kernel execution.
-- Performance varies with GPU, clocks, driver, CUDA, PyTorch, Triton, and input size. Always report hardware and versions from the run record.
-- A public deployment, video, and Devpost submission still need to be created by the team.
+- Live model inference and GPU measurements have not been verified merely by opening the demo.
+- The candidate search currently focuses on launch parameters for one workload.
+- The project is a bounded prototype, not a system for executing arbitrary AI-generated kernel code.
+- Performance depends on the GPU, driver, CUDA, PyTorch, Triton, and input size.
+- A public deployment, demo video, and final submission must be completed separately if required by the hackathon.
 
 ## References
 
-- [Hackathon overview and submission requirements](https://nebiusglobalaihackathon.devpost.com/)
-- [Official rules](https://nebiusglobalaihackathon.devpost.com/rules)
-- [FAQ](https://nebiusglobalaihackathon.devpost.com/details/faqs)
+- [Nebius Global AI Hackathon](https://nebiusglobalaihackathon.devpost.com/)
+- [Hackathon rules](https://nebiusglobalaihackathon.devpost.com/rules)
+- [Hackathon FAQ](https://nebiusglobalaihackathon.devpost.com/details/faqs)
 - [NVIDIA Nemotron models on Nebius Token Factory](https://nebius.com/services/token-factory/models/nvidia-nemotron-models-inference)
 - [Nebius Token Factory documentation](https://docs.tokenfactory.nebius.com/)
+- [PyTorch installation selector](https://pytorch.org/get-started/locally/)
+- [NVIDIA CUDA on WSL guide](https://docs.nvidia.com/cuda/wsl-user-guide/)
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+See the repository's `LICENSE` file for the applicable license.
