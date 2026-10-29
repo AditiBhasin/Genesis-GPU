@@ -28,7 +28,12 @@ def run_optimization(*, size: int, proposals: list[dict], repeats: int) -> dict:
     x = torch.randn(size, device="cuda", dtype=torch.float32)
     y = torch.randn(size, device="cuda", dtype=torch.float32)
     reference = x + y
-    reference_latency_ms = triton.testing.do_bench(lambda: torch.add(x, y), rep=repeats)
+    reference_out = torch.empty_like(x)
+
+    reference_latency_ms = triton.testing.do_bench(
+    lambda: torch.add(x, y, out=reference_out),
+    rep=repeats
+)
     candidates: list[dict] = []
     seen: set[tuple[int, int]] = set()
     for index, proposal in enumerate(proposals, start=1):
